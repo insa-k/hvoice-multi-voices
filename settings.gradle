@@ -1,0 +1,2 @@
+rootProject.name = 'hvoice-multi-voices'
+include 'hvoice-1', 'hvoice-2', 'hvoice-3', 'hvoice-4', 'hvoice-5'

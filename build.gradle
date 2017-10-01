@@ -1,0 +1,123 @@
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath "de.undercouch:gradle-download-task:3.2.0"
+    }
+}
+
+apply plugin: "de.undercouch.download"
+
+task downloadData(type: de.undercouch.gradle.tasks.download.Download) {
+    src 'https://github.com/insa-k/marytts-voicebuilding-hvoice-data/releases/download/hvoice-data-new/hvoice-data-new.zip'
+    dest "${rootProject.projectDir}/hvoice-data-new.zip"
+    overwrite false
+    onlyIfNewer true
+}
+
+subprojects { subproject ->
+
+    task setupSubprojectFiles {
+        dependsOn downloadData
+        def subProjectDir = new File("${subproject.projectDir}").mkdirs()
+        def buildFile = new File("${subproject.projectDir}/build.gradle")
+        buildFile.createNewFile()
+    }
+
+    task unpackWav(type: Copy) {
+        dependsOn downloadData, setupSubprojectFiles
+        from zipTree("${rootProject.projectDir}/hvoice-data-new.zip"), {
+            include '**/wav/*.wav'
+            eachFile {
+                it.path = it.name
+            }
+        }
+        into "${subproject.buildDir}/wav"
+        includeEmptyDirs = false
+    }
+
+    task unpackText(type: Copy) {
+        dependsOn downloadData, setupSubprojectFiles
+        from zipTree("${rootProject.projectDir}/hvoice-data-new.zip"), {
+            include '**/text/*.txt'
+            eachFile {
+                it.path = it.name
+            }
+        }
+        into "${subproject.buildDir}/text"
+        includeEmptyDirs = false
+    }
+
+    task unpackLab(type: Copy) {
+        dependsOn downloadData, setupSubprojectFiles
+        from zipTree("${rootProject.projectDir}/hvoice-data-new.zip"), {
+            include '**/lab/*.lab'
+            eachFile {
+                it.path = it.name
+            }
+        }
+        into "${subproject.buildDir}/lab"
+        includeEmptyDirs = false
+    }
+
+
+    task setupSubproject {
+        dependsOn downloadData, unpackLab, unpackText, unpackWav
+        def subProjectDir = new File("${subproject.projectDir}").mkdirs()
+        def buildFile = new File("${subproject.projectDir}/build.gradle")
+        buildFile.createNewFile()
+        buildFile.text = '''buildscript {
+    repositories {
+        jcenter()
+        mavenLocal()
+    }
+    dependencies {
+        classpath "de.dfki.mary:marytts-client:5.2"
+        classpath "de.dfki.mary:marytts-lang-en:5.2"
+        classpath "de.dfki.mary:gradle-marytts-crossvalidation-plugin:0.1-SNAPSHOT"
+    }
+}
+
+plugins {
+    id 'groovy\'
+    id 'de.dfki.mary.voicebuilding-legacy' version '5.2.0\'
+}
+
+apply plugin: 'de.dfki.mary.voicebuilding.marytts-crossvalidation\'
+
+group 'de.dfki.mary\'
+
+voice {
+    name = "$rootProject.name\"
+    language = 'en\'
+    region = 'US\'
+    gender = 'female\'
+    type = 'unit selection\'
+    samplingRate = 16000
+}
+
+configurations.all {
+    resolutionStrategy {
+        force 'org.codehaus.groovy:groovy-all:2.4.10\'
+    }
+}
+
+selectCrossvalidationFiles {
+    selectCrossvalidationFiles.foldNb = 5
+}
+
+legacyInit {
+    dependsOn selectCrossvalidationFiles, generateCrossvalidationInputFiles
+}
+
+
+'''
+        def settingsFile = new File("${subproject.projectDir}/settings.gradle")
+        settingsFile.createNewFile()
+        settingsFile.text = "rootProject.name = \"${subproject.name}\""
+
+    }
+}
