@@ -1,0 +1,19 @@
+# Gradle
+.gradle/
+build/
+
+# IDEA
+.idea/
+*.iml
+
+# OSX
+.DS_Store
+
+resources/
+
+# subprojects
+hvoice-*/
+
+# zip archive
+*.zip
+
